@@ -17,7 +17,7 @@ A serverless, single-page application that visualizes your OneDrive photos on an
 
 To use this app, you need a **Microsoft Azure Client ID**. This authorizes the app to read your OneDrive files.
 
-1. Go to [Azure Portal \- App Registrations](https://www.google.com/search?q=https://portal.azure.com/%23view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).  
+1. Go to [Azure Portal \- App Registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).  
 2. Click **New registration**.  
 3. **Name**: Enter a name (e.g., OneDriveMap).  
 4. **Supported account types**: Select **"Accounts in any organizational directory and personal Microsoft accounts"**.  
@@ -72,7 +72,7 @@ MIT License
 
 要使用此應用程式，您需要一組 **Microsoft Azure Client ID**，這用於授權應用程式讀取您的 OneDrive 檔案。
 
-1. 前往 [Azure Portal \- 應用程式註冊](https://www.google.com/search?q=https://portal.azure.com/%23view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)。  
+1. 前往 [Azure Portal \- 應用程式註冊](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)。  
 2. 點擊 **新註冊**。  
 3. **名稱**：輸入任意名稱 (例如 OneDriveMap)。  
 4. **支援的帳戶類型**：選擇 **「任何組織目錄中的帳戶和個人 Microsoft 帳戶」**。  
