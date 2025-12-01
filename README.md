@@ -2,6 +2,8 @@
 **This program was developed by Gemini 3 Pro.**
 
 A serverless, single-page application that visualizes your OneDrive photos on an interactive map using their GPS data.
+<img width="2552" height="1224" alt="image" src="https://github.com/user-attachments/assets/994ac3d0-7504-4efb-84b0-aba4c4c9f36a" />
+<img width="2551" height="1228" alt="image" src="https://github.com/user-attachments/assets/c6877720-6d4f-4713-954e-cb7b91b535ed" />
 
 ## **✨ Features**
 
