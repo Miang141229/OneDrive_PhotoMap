@@ -88,7 +88,7 @@ MIT License
 2. 啟動一個本機網頁伺服器 (OAuth 驗證需要)。  
    * **VS Code**: 安裝 "Live Server" 套件 \-\> 右鍵點擊 index.html \-\> 選擇 "Open with Live Server"。  
    * **Python**: 在終端機執行 python \-m http.server 5500。  
-3. 在瀏覽器開啟網址 (例如 http://localhost:5500/index.html)。  
+3. 在瀏覽器開啟網址，例如 http://localhost:5500/index.html。  
 4. 將您的 **Client ID** 貼入輸入框並點擊 **初始化**。  
 5. 登入您的 Microsoft 帳號並開始使用！
 
