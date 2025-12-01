@@ -1,5 +1,5 @@
 # **OneDrive Photo Map 🗺️**
-
+This program was developed by Gemini 3 Pro.
 A serverless, single-page application that visualizes your OneDrive photos on an interactive map using their GPS data.
 
 ## **✨ Features**
@@ -53,7 +53,7 @@ To use this app, you need a **Microsoft Azure Client ID**. This authorizes the a
 MIT License
 
 # **OneDrive 相片地圖 🗺️**
-
+此程式由Gemini 3 Pro開發。
 這是一個無需後端伺服器的單頁應用程式 (SPA)，它能讀取您 OneDrive 照片中的 GPS 資訊，並將其呈現在互動式地圖上。
 
 ## **✨ 功能特色**
