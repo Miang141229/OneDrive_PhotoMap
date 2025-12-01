@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OneDrive 相片地圖 (全螢幕版)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <!-- MSAL JS -->
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* 全螢幕地圖 */
+        #map {
+            height: 100vh;
+            width: 100vw;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        /* 修正彈出視窗圖片溢出問題 */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            width: 260px !important;
+            /* 強制固定寬度 */
+        }
+
+        .photo-popup {
+            padding: 10px;
+        }
+
+        .photo-popup img {
+            width: 100%;
+            /* 寬度填滿容器 */
+            height: auto;
+            /* 高度自動 */
+            max-height: 200px;
+            /* 限制最大高度 */
+            object-fit: cover;
+            /* 保持比例 */
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto 8px auto;
+        }
+
+        /* 讀取動畫 */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 滾動條美化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #aaa;
+        }
+    </style>
+</head>
+
+<body class="font-sans text-gray-800">
+
+    <!-- 地圖容器 -->
+    <div id="map"></div>
+
+    <!-- 懸浮控制面板 (左上角) -->
+    <div class="absolute top-4 left-4 z-[1000] w-80 max-h-[90vh] flex flex-col gap-2 transition-all duration-300"
+        id="control-panel">
+
+        <!-- 收合/展開按鈕 -->
+        <button onclick="togglePanel()"
+            class="bg-white p-2 rounded-lg shadow-md text-gray-600 hover:text-blue-600 flex items-center justify-between font-bold">
+            <span id="panel-title">OneDrive 相片地圖</span>
+            <svg id="panel-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform transition-transform"
+                viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                    d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                    clip-rule="evenodd" />
+            </svg>
+        </button>
+
+        <!-- 面板內容 -->
+        <div id="panel-content"
+            class="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-4 overflow-y-auto transition-all duration-300">
+
+            <!-- 設定區域 -->
+            <div id="config-section" class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1">Azure Client ID</label>
+                <div class="flex gap-1">
+                    <input type="text" id="client-id-input" placeholder="貼上 ID"
+                        class="w-full text-sm p-2 border rounded focus:outline-none focus:border-blue-500">
+                </div>
+                <button onclick="initializeMsal()"
+                    class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 rounded transition">
+                    初始化
+                </button>
+            </div>
+
+            <!-- 操作區域 (登入後顯示) -->
+            <div id="auth-section" class="hidden flex flex-col gap-3">
+
+                <!-- 使用者資訊 -->
+                <div id="user-info"
+                    class="hidden text-sm text-center bg-green-50 text-green-700 p-2 rounded border border-green-200">
+                    已登入: <span id="username" class="font-bold"></span>
+                </div>
+
+                <button id="login-btn" onclick="signIn()"
+                    class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded shadow transition">
+                    登入 Microsoft 帳號
+                </button>
+
+                <!-- 功能按鈕 -->
+                <div id="action-buttons" class="hidden flex flex-col gap-2">
+                    <button id="btn-camera" onclick="startFetching()"
+                        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded shadow transition flex items-center justify-center gap-2">
+                        <span id="btn-text">掃描本機相簿</span>
+                    </button>
+
+                    <button id="btn-stop" onclick="stopFetching()"
+                        class="hidden w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded shadow transition">
+                        停止掃描
+                    </button>
+
+                    <div class="flex justify-between items-center mt-1">
+                        <span class="text-xs text-gray-400">資料存於瀏覽器</span>
+                        <button onclick="clearCache()" class="text-xs text-gray-500 hover:text-red-500 underline">
+                            清除紀錄
+                        </button>
+                    </div>
+
+                    <!-- 進度條 -->
+                    <div id="progress-container" class="hidden w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                        <div id="progress-bar" class="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                            style="width: 0%"></div>
+                    </div>
+
+                    <div id="status-msg" class="text-xs text-gray-600 text-center min-h-[1.5em]">準備就緒</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 懸浮計數器 (右上角) -->
+    <div
+        class="absolute top-4 right-4 z-[1000] bg-white/90 p-3 rounded-lg shadow-lg backdrop-blur-md border border-gray-200 text-sm pointer-events-none">
+        <div class="text-gray-500 text-xs uppercase tracking-wider">相片數量</div>
+        <div class="text-2xl font-bold text-blue-600 leading-none mt-1" id="count-located">0</div>
+        <div class="text-xs text-gray-400 mt-1">已掃描: <span id="count-scanned">0</span></div>
+    </div>
+
+    <script>
+        // --- 介面控制 ---
+        let isPanelOpen = true;
+        function togglePanel() {
+            const content = document.getElementById('panel-content');
+            const icon = document.getElementById('panel-icon');
+            isPanelOpen = !isPanelOpen;
+            if (isPanelOpen) {
+                content.classList.remove('hidden');
+                icon.classList.remove('rotate-180');
+            } else {
+                content.classList.add('hidden');
+                icon.classList.add('rotate-180');
+            }
+        }
+
+        // --- 地圖與資料邏輯 ---
+        let msalInstance = null;
+        let map = null;
+        let markers = null;
+        let isRunning = false;
+        const CACHE_KEY = "onedrive_map_photos_v2";
+        let allPhotosCache = [];
+        let stats = { scanned: 0, located: 0 };
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([23.6978, 120.9605], 3);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+
+            // 設定聚合點效果
+            markers = L.markerClusterGroup({
+                chunkedLoading: true,
+                spiderfyOnMaxZoom: true, // 關鍵：在最大縮放層級時，點擊會散開
+                showCoverageOnHover: false, // 滑鼠移上去不要顯示範圍框，比較乾淨
+                zoomToBoundsOnClick: true,
+                spiderLegPolylineOptions: { weight: 1.5, color: '#222', opacity: 0.5 }, // 散開時的線條樣式
+                maxClusterRadius: 50 // 聚合半徑，越小聚合越少
+            });
+            map.addLayer(markers);
+        }
+
+        async function initializeMsal() {
+            const clientId = document.getElementById('client-id-input').value.trim();
+            if (!clientId) return alert("請輸入 Client ID");
+
+            const msalConfig = {
+                auth: {
+                    clientId: clientId,
+                    redirectUri: window.location.href.split('?')[0].split('#')[0],
+                },
+                cache: { cacheLocation: "sessionStorage" }
+            };
+
+            try {
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                await msalInstance.initialize();
+                document.getElementById('config-section').classList.add('hidden');
+                document.getElementById('auth-section').classList.remove('hidden');
+            } catch (error) {
+                alert("初始化失敗: " + error.message);
+            }
+        }
+
+        async function signIn() {
+            if (!msalInstance) return;
+            try {
+                const loginResponse = await msalInstance.loginPopup({ scopes: ["User.Read", "Files.Read.All"] });
+                handleLoginSuccess(loginResponse.account);
+            } catch (error) {
+                alert("登入失敗: " + error.message);
+            }
+        }
+
+        function handleLoginSuccess(account) {
+            document.getElementById('login-btn').classList.add('hidden');
+            document.getElementById('user-info').classList.remove('hidden');
+            document.getElementById('username').innerText = account.username;
+            document.getElementById('action-buttons').classList.remove('hidden');
+            loadFromCache();
+        }
+
+        // --- 快取與掃描 ---
+
+        function loadFromCache() {
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            if (cachedData) {
+                try {
+                    const photos = JSON.parse(cachedData);
+                    if (photos && photos.length > 0) {
+                        allPhotosCache = photos;
+                        stats.located = photos.length;
+                        stats.scanned = photos.length;
+                        renderMarkers(photos, true);
+                        updateCounts();
+                        document.getElementById('btn-text').innerText = "更新資料 (重新掃描)";
+                        updateStatus(`已載入 ${photos.length} 張快取照片`, false);
+                    }
+                } catch (e) { console.error(e); }
+            }
+        }
+
+        function saveToCache() {
+            if (allPhotosCache.length > 0) {
+                try {
+                    const dataToSave = allPhotosCache.map(p => ({
+                        name: p.name, lat: p.lat, lng: p.lng,
+                        thumbUrl: p.thumbUrl, webUrl: p.webUrl, date: p.date
+                    }));
+                    localStorage.setItem(CACHE_KEY, JSON.stringify(dataToSave));
+                } catch (e) { console.error("Cache full", e); }
+            }
+        }
+
+        function clearCache() {
+            localStorage.removeItem(CACHE_KEY);
+            markers.clearLayers();
+            allPhotosCache = [];
+            stats.scanned = 0; stats.located = 0;
+            updateCounts();
+            document.getElementById('btn-text').innerText = "掃描本機相簿";
+            updateStatus("紀錄已清除", false);
+        }
+
+        function stopFetching() {
+            isRunning = false;
+            updateUIState(false);
+            updateStatus("已停止", true);
+            saveToCache();
+        }
+
+        async function startFetching() {
+            if (!msalInstance || isRunning) return;
+            isRunning = true;
+            stats.scanned = 0; stats.located = 0;
+            allPhotosCache = [];
+            markers.clearLayers();
+            updateCounts();
+            updateUIState(true);
+
+            try {
+                const account = msalInstance.getAllAccounts()[0];
+                const tokenResponse = await msalInstance.acquireTokenSilent({
+                    scopes: ["Files.Read.All"],
+                    account: account
+                });
+
+                // 優先抓取 Large 縮圖
+                const nextUrl = `https://graph.microsoft.com/v1.0/me/drive/special/cameraRoll/children?$expand=thumbnails($select=large,medium,small)&$select=id,name,location,webUrl,createdDateTime,file&$top=200`;
+                await fetchPageRecursive(nextUrl, tokenResponse.accessToken);
+
+            } catch (error) {
+                console.error(error);
+                updateStatus("錯誤: " + error.message, true);
+                isRunning = false;
+                updateUIState(false);
+            }
+        }
+
+        async function fetchPageRecursive(url, accessToken) {
+            if (!isRunning || !url) { finishFetching(); return; }
+            updateStatus(`掃描中...(${stats.scanned})`, false, true);
+
+            try {
+                const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                if (!response.ok) throw new Error(response.statusText);
+
+                const data = await response.json();
+                processBatch(data.value);
+
+                if (data['@odata.nextLink']) {
+                    setTimeout(() => fetchPageRecursive(data['@odata.nextLink'], accessToken), 50);
+                } else {
+                    finishFetching();
+                }
+            } catch (err) {
+                updateStatus("中斷: " + err.message, true);
+                isRunning = false;
+                updateUIState(false);
+            }
+        }
+
+        function processBatch(photos) {
+            stats.scanned += photos.length;
+            const newPhotoObjects = [];
+
+            photos.forEach(photo => {
+                if (photo.location && photo.location.latitude) {
+                    let thumbUrl = '';
+                    if (photo.thumbnails && photo.thumbnails.length > 0) {
+                        const t = photo.thumbnails[0];
+                        // 優先順序: Large -> Medium -> Small
+                        if (t.large) thumbUrl = t.large.url;
+                        else if (t.medium) thumbUrl = t.medium.url;
+                        else if (t.small) thumbUrl = t.small.url;
+                    }
+
+                    newPhotoObjects.push({
+                        name: photo.name,
+                        lat: photo.location.latitude,
+                        lng: photo.location.longitude,
+                        thumbUrl: thumbUrl,
+                        webUrl: photo.webUrl,
+                        date: photo.createdDateTime
+                    });
+                }
+            });
+
+            allPhotosCache = allPhotosCache.concat(newPhotoObjects);
+            stats.located = allPhotosCache.length;
+            renderMarkers(newPhotoObjects, false);
+
+            if (stats.located <= 200 && newPhotoObjects.length > 0) {
+                map.fitBounds(markers.getBounds());
+            }
+            updateCounts();
+        }
+
+        function renderMarkers(photoList, fitMap) {
+            const newMarkers = [];
+            photoList.forEach(p => {
+                const marker = L.marker([p.lat, p.lng]);
+
+                // 彈出視窗 HTML
+                const imgHtml = p.thumbUrl
+                    ? `<img src="${p.thumbUrl}" alt="Photo" onclick="window.open('${p.webUrl}', '_blank')" class="cursor-pointer hover:opacity-90 transition">`
+                    : `<div class="bg-gray-200 h-32 flex items-center justify-center text-xs text-gray-500 rounded mb-2">連結失效</div>`;
+
+                const content = `
+                    <div class="photo-popup text-center">
+                        <h3 class="font-bold text-sm mb-2 text-blue-800 truncate">${p.name}</h3>
+                        ${imgHtml}
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-xs text-gray-500">${new Date(p.date).toLocaleDateString()}</span>
+                            <a href="${p.webUrl}" target="_blank" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 no-underline">開啟</a>
+                        </div>
+                    </div>
+                `;
+                marker.bindPopup(content);
+                newMarkers.push(marker);
+            });
+
+            if (newMarkers.length > 0) {
+                markers.addLayers(newMarkers);
+                if (fitMap) map.fitBounds(markers.getBounds());
+            }
+        }
+
+        function finishFetching() {
+            isRunning = false;
+            updateUIState(false);
+            saveToCache();
+            if (stats.located > 0) {
+                updateStatus("完成！", false);
+                document.getElementById('btn-text').innerText = "更新資料 (重新掃描)";
+                map.fitBounds(markers.getBounds());
+            } else {
+                updateStatus("未找到含 GPS 照片", true);
+            }
+        }
+
+        function updateUIState(processing) {
+            const btnCamera = document.getElementById('btn-camera');
+            const btnStop = document.getElementById('btn-stop');
+            const bar = document.getElementById('progress-bar');
+            const container = document.getElementById('progress-container');
+
+            if (processing) {
+                btnCamera.classList.add('hidden');
+                btnStop.classList.remove('hidden');
+                container.classList.remove('hidden');
+                bar.style.width = '100%';
+                bar.classList.add('animate-pulse');
+            } else {
+                btnCamera.classList.remove('hidden');
+                btnStop.classList.add('hidden');
+                container.classList.add('hidden');
+                bar.classList.remove('animate-pulse');
+                bar.style.width = '0%';
+            }
+        }
+
+        function updateStatus(msg, isError, isLoading) {
+            const el = document.getElementById('status-msg');
+            el.innerHTML = isLoading ? `<div class="loader mr-2"></div> ${msg}` : msg;
+            el.className = isError ? "text-xs text-red-600 font-bold text-center" : "text-xs text-gray-600 text-center flex justify-center items-center";
+        }
+
+        function updateCounts() {
+            document.getElementById('count-scanned').innerText = stats.scanned;
+            document.getElementById('count-located').innerText = stats.located;
+        }
+
+        // 啟動
+        initMap();
+
+    </script>
+</body>
+
+</html>
