@@ -59,6 +59,8 @@ MIT License
 **此程式由Gemini 3 Pro開發。**
 
 這是一個無需後端伺服器的單頁應用程式 (SPA)，它能讀取您 OneDrive 照片中的 GPS 資訊，並將其呈現在互動式地圖上。
+<img width="2552" height="1224" alt="image" src="https://github.com/user-attachments/assets/994ac3d0-7504-4efb-84b0-aba4c4c9f36a" />
+<img width="2551" height="1228" alt="image" src="https://github.com/user-attachments/assets/c6877720-6d4f-4713-954e-cb7b91b535ed" />
 
 ## **✨ 功能特色**
 
